@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Client, ClientDTO, Status } from "@/utils/types/client";
+import { Client, Status } from "@/utils/types/client";
 import { getClients } from "@/utils/airtable";
 import deleteClient from "@/utils/airtable/deleteClient";
 import updateClient from "@/utils/airtable/updateClient";
-import Menu from "@/components/menu/Menu";
 
 const AdminPage = () => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [editClientId, setEditClientId] = useState<string | null>(null);
-  const [editedClient, setEditedClient] = useState<Partial<Client>>({});
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteValue, setNoteValue] = useState<string>("");
 
   useEffect(() => {
     getClients(setClients);
   }, []);
 
-  // Modification du status d'un client
+  // Modification du statut d'un client
   const updateClientStatus = (clientId: string, newStatus: Status) => {
     const updatedClients = clients.map((client) =>
       client.id === clientId ? { ...client, status: newStatus } : client
@@ -33,32 +32,32 @@ const AdminPage = () => {
     deleteClient(clientId, setClients);
   };
 
-  // Modification d'un client
-  const handleEdit = (clientId: string) => {
-    setEditClientId(clientId);
-    const client = clients.find((client) => client.id === clientId);
-    if (client) {
-      setEditedClient({
-        firstname: client.firstname,
-        lastname: client.lastname,
-        email: client.email,
-        phone_number: client.phone_number,
-      });
-    }
+  // Début de modification de la note
+  const startEditingNote = (clientId: string, currentNote: string) => {
+    setEditingNoteId(clientId);
+    setNoteValue(currentNote);
   };
 
-  // Confirmer la modification du client
-  const handleConfirmEdit = () => {
-    if (editClientId) {
-      updateClient(editClientId, editedClient as ClientDTO, () => {
-        console.log("Client mis à jour");
-        setEditClientId(null);
-        setEditedClient({});
-      });
-    }
+  // Enregistrement de la note mise à jour
+  const saveNote = (clientId: string) => {
+    updateClient(clientId, { notes: noteValue }, () => {
+      console.log(`La note du client ${clientId} a été mise à jour sur Airtable`);
+      setClients((prevClients) =>
+        prevClients.map((client) =>
+          client.id === clientId ? { ...client, notes: noteValue } : client
+        )
+      );
+      setEditingNoteId(null);
+    });
   };
 
-  // Couleurs des status
+  // Annuler la modification de la note
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setNoteValue("");
+  };
+
+  // Couleurs des statuts
   const statusColors: { [key in Status]: string } = {
     [Status.NOT_CONTACTED]: "text-red-500", // Rouge pour "Not Contacted"
     [Status.CONTACT_IN_FUTURE]: "text-orange-500", // Orange pour "Contact in Future"
@@ -71,105 +70,79 @@ const AdminPage = () => {
     [Status.CONTACT_IN_FUTURE]: 2,
     [Status.CONTACTED]: 3,
   };
-  
-  // Triage des clients par status
+
+  // Triage des clients par statut
   const sortedClients = [...clients].sort((a, b) => {
     return statusOrder[a.status] - statusOrder[b.status];
   });
 
   return (
-    <>
-      <Menu />
-      <div className="p-6">
-        <h1 className="text-2xl font-semibold mb-6">Gestion des Clients</h1>
-        <table className="w-full table-auto">
-          <thead>
-            <tr>
-              <th className="p-2 text-left">Prénom</th>
-              <th className="p-2 text-left">Nom</th>
-              <th className="p-2 text-left">Email</th>
-              <th className="p-2 text-left">Téléphone</th>
-              <th className="p-2 text-left">Statut</th>
-              <th className="p-2 text-left">Actions</th>
+    <div className="p-6">
+      <h1 className="text-2xl font-semibold mb-6">Gestion des Clients</h1>
+      <table className="w-full table-auto">
+        <thead>
+          <tr>
+            <th className="p-2 text-left">Prénom</th>
+            <th className="p-2 text-left">Nom</th>
+            <th className="p-2 text-left">Email</th>
+            <th className="p-2 text-left">Téléphone</th>
+            <th className="p-2 text-left">Note</th>
+            <th className="p-2 text-left">Statut</th>
+            <th className="p-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedClients.map((client) => (
+            <tr key={client.id} className={`${statusColors[client.status]} border-b border-gray-300 hover:bg-gray-200`}>
+              <td className="p-2">{client.firstname}</td>
+              <td className="p-2">{client.lastname}</td>
+              <td className="p-2">{client.email}</td>
+              <td className="p-2">{client.phone_number}</td>
+              <td className="p-2">
+                {editingNoteId === client.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={noteValue}
+                      onChange={(e) => setNoteValue(e.target.value)}
+                      className="border rounded px-2 py-1 w-full"
+                    />
+                    <Button variant="outline" onClick={() => saveNote(client.id)}>
+                      Confirmer
+                    </Button>
+                    <Button variant="destructive" onClick={cancelEditingNote}>
+                      Annuler
+                    </Button>
+                  </div>
+                ) : (
+                  <span>{client.notes}</span>
+                )}
+              </td>
+              <td className="p-2">
+                <Select onValueChange={(value) => updateClientStatus(client.id, value as Status)} defaultValue={client.status}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={Status.NOT_CONTACTED}>Not Contacted</SelectItem>
+                    <SelectItem value={Status.CONTACT_IN_FUTURE}>Contact In Future</SelectItem>
+                    <SelectItem value={Status.CONTACTED}>Contacted</SelectItem>
+                  </SelectContent>
+                </Select>
+              </td>
+              <td className="p-2 flex gap-2">
+                <Button variant="outline" onClick={() => startEditingNote(client.id, client.notes || "")}>
+                  Modifier la Note
+                </Button>
+                <Button variant="destructive" onClick={() => handleDelete(client.id)}>
+                  Supprimer
+                </Button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {sortedClients.map((client) => (
-              <tr key={client.id} className={`${statusColors[client.status]} border-b border-gray-300 hover:bg-gray-200`}>
-                <td className="p-2">
-                  {editClientId === client.id ? (
-                    <input
-                      className="w-full"
-                      type="text"
-                      value={editedClient.firstname}
-                      onChange={(e) => setEditedClient({ ...editedClient, firstname: e.target.value })}
-                    />
-                  ) : (
-                    client.firstname
-                  )}
-                </td>
-                <td className="p-2">
-                  {editClientId === client.id ? (
-                    <input
-                      className="w-full"
-                      type="text"
-                      value={editedClient.lastname}
-                      onChange={(e) => setEditedClient({ ...editedClient, lastname: e.target.value })}
-                    />
-                  ) : (
-                    client.lastname
-                  )}
-                </td>
-                <td className="p-2">
-                  {editClientId === client.id ? (
-                    <input
-                      className="w-full"
-                      type="email"
-                      value={editedClient.email}
-                      onChange={(e) => setEditedClient({ ...editedClient, email: e.target.value })}
-                    />
-                  ) : (
-                    client.email
-                  )}
-                </td>
-                <td className="p-2">
-                  {editClientId === client.id ? (
-                    <input
-                      className="w-full"
-                      type="text"
-                      value={editedClient.phone_number}
-                      onChange={(e) => setEditedClient({ ...editedClient, phone_number: e.target.value })}
-                    />
-                  ) : (
-                    client.phone_number
-                  )}
-                </td>
-                <td className="p-2">
-                  <Select onValueChange={(value) => updateClientStatus(client.id, value as Status)} defaultValue={client.status}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={Status.NOT_CONTACTED}>Not Contacted</SelectItem>
-                      <SelectItem value={Status.CONTACT_IN_FUTURE}>Contact In Future</SelectItem>
-                      <SelectItem value={Status.CONTACTED}>Contacted</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="p-2 flex gap-2">
-                  {editClientId === client.id ? (
-                    <Button variant="outline" onClick={handleConfirmEdit}>Confirmer</Button>
-                  ) : (
-                    <Button variant="outline" onClick={() => handleEdit(client.id)}>Modifier</Button>
-                  )}
-                  <Button variant="destructive" onClick={() => handleDelete(client.id)}>Supprimer</Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
