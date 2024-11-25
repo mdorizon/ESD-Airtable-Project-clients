@@ -10,7 +10,7 @@ const getClients = (
 
   const table = base(TABLE_NAME);
 
-  const GRID_VIEW_NAME = "Grid view";
+  const GRID_VIEW_NAME = "Clients";
 
   table
     .select({

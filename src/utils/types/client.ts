@@ -1,7 +1,7 @@
 export enum Status {
   CONTACTED = "Contacted",
   NOT_CONTACTED = "Not Contacted",
-  CONTACT_IN_FUTUR = "Contact in future",
+  CONTACT_IN_FUTURE = "Contact in future",
 }
 
 export type Client = {
@@ -20,4 +20,5 @@ export type ClientDTO = {
   lastname: string;
   email: string;
   phone_number: string;
+  status: Status;
 };

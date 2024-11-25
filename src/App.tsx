@@ -1,28 +1,17 @@
-import "./App.css";
-import { useEffect, useState } from "react";
-import { Clients } from "./utils/types/client";
-import { getClients } from "./utils/airtable";
-import Chip from "./components/Chip/Chip";
-import ClientForm from "./components/ClientForm/ClientForm";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import ClientFormPage from "./page/ClientFormPage";
+import AdminPage from "./page/AdminPage";
 
-function App() {
-  const [clients, setClients] = useState<Clients>([]);
-  useEffect(() => {
-    getClients(setClients);
-  }, []);
-
+const App = () => {
   return (
-    <ul>
-      {clients.map((client) => (
-        <li key={client.id}>
-          ID: {client.id} - {client.firstname} - {client.lastname} -{" "}
-          {client.email} - {client.phone_number} -{" "}
-          <Chip status={client.status} />
-        </li>
-      ))}
-      <ClientForm setClients={setClients} />
-    </ul>
+    <Router>
+      <Routes>
+        <Route path="/" element={<ClientFormPage />} />
+
+        <Route path="/admin" element={<AdminPage />} />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;
